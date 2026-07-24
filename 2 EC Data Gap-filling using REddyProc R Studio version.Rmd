@@ -1,0 +1,263 @@
+---
+                                                    ╔═══════════════════════════════════════════════════╗
+                                                    ║      🌿  **GAP-FILLING USING REddyProc**          ║
+                                                    ║      📘  **R-Based Script (Runtime type)**        ║
+                                                    ╚═══════════════════════════════════════════════════╝
+
+
+title: "2 REddyProc Binder version for AisaFlux2025"
+date: "2025-10-09"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# ============================================================
+# 📦 **1. Importing Packages**
+# ============================================================
+
+```{r}
+library(REddyProc)              # Load REddyProc
+library(lubridate)              # Handle date-time data
+library(tidyverse)              # Data manipulation and visualization
+library(dplyr)                  # Data wrangling
+library(bigleaf)                # Canopy and flux calculations
+library(data.table)             # Efficient data handling
+library(ggplot2)                # Plotting and visualization
+```
+
+
+# ============================================================
+# 🌿 **2. Data Directory and Loading**
+# ============================================================
+
+# Site info
+```{r}
+siteLat <- 53.15174484
+siteLon <- -7.967936516
+siteTz  <- 0
+siteName <- "All Saints Bog"
+```
+
+# Directories and filenames
+```{r}
+datadir <- "."
+datafile <- "AsiaFlux2025.txt"
+resdir <- "output"
+resfile <- "gap_filled_data_all_saints_bog_vpd"
+# Ensure the output folder exists
+if (!dir.exists(resdir)) dir.create(resdir)
+
+# Full paths
+file <- file.path(datadir, datafile)
+outfile <- file.path(resdir, paste0(resfile, ".txt"))
+
+# Print paths for verification
+print(paste("Input file:", normalizePath(file, winslash = "/")))
+print(paste("Output file will be saved as:", normalizePath(outfile, winslash = "/")))
+```
+
+
+# Load input file
+```{r}
+if (!file.exists(file)) stop("Data file not found: ", file)
+EddyData <- fLoadTXTIntoDataframe(file)
+```
+
+
+# ============================================================
+# ⚙️ **3. Data Processing**
+# ============================================================
+```{r}
+# add POSIXtime column if DateTime
+EddyData <- fConvertTimeToPosix(EddyData, "YDH", Year="Year", Day="DoY", Hour="Hour")
+
+# REddyProc does not accept negative radiation values, convert to zero 
+# (missing data values -9999 were already converted to NA by fLoadTXTIntoDataframe)
+EddyData$Rg[EddyData$Rg<0] <- 0
+
+# calculate VPD
+#EddyData$VPD <- fCalcVPDfromRHandTair(EddyData$rH, EddyData$Tair)
+
+# calculate mean of Tair and Tsoil as Tmean to get more meaningful binning variable or respiration driver than Tair
+EddyData$Tmean <- rowMeans(EddyData[,c("Tair","Tsoil")], na.rm=TRUE)
+
+# removal of outliers and obvious peaks in the data
+#EddyData$NEE[abs(EddyData$NEE - mean(EddyData$NEE, na.rm=T)) > 3 * sd(EddyData$NEE, na.rm=T)] <- NA
+#EddyData$LE[abs(EddyData$LE - mean(EddyData$LE, na.rm=T)) > 3 * sd(EddyData$LE, na.rm=T)] <- NA
+#EddyData$H[abs(EddyData$H - mean(EddyData$H, na.rm=T)) > 3 * sd(EddyData$H, na.rm=T)] <- NA
+
+# removal of data with high QC flag
+#EddyData$NEE[EddyData$qc_co2_flux > 1.0] <- NA
+#EddyData$LE[EddyData$qc_co2_flux > 1.0] <- NA
+```
+
+
+# ============================================================
+# 🌿 **4 REddyProc Application**
+# ============================================================
+📂 **Processed and Clean EC Data**
+      
+      ---> ⚙️ REddyProc Object Initiation
+      
+                    ---> 🌬️ U* Star Filtering
+      
+                    ---> 🧩 Gap-Filling
+      
+                  ---> 🌿 Flux Partitioning
+      
+      ---> 📊 Outputs (NEE_f, GPP, Reco)
+      
+      
+-------------------------------------------
+# 🔹 **4.1 Initialize REddyProc Object**
+-------------------------------------------
+```{r}
+# initialize new REddyProc object with site data and location
+EddyObj <- sEddyProc$new(ID=siteName, Data=EddyData, ColNames=c("NEE","Rg","Tair","Tsoil","Tmean","VPD","Ustar"), 
+                         LatDeg=siteLat, LongDeg=siteLon, TimeZoneHour=siteTz)
+```
+
+
+-----------------------------------------------------------------------
+# 🔹 **4.2 uStar Threshold Estimation and NEE Gap-Filling Preparation**
+-----------------------------------------------------------------------
+```{r}
+# u* threshold
+
+# REddyProc estimates seasonal u* thresholds,
+# modify season boundaries to pool all data (May-Aug) into one season (default seasons are Dec-Feb, Mar-May, Jun-Aug, Sep-Nov)
+seasons <- usCreateSeasonFactorMonth(EddyData$DateTime-15*60, startMonth = c(1,5,9))
+
+# estimate u* threshold distribution...
+uStarThAll <- EddyObj$sEstUstarThresholdDistribution(seasonFactor=seasons)
+
+# ... or just mean values
+uStarTh <- EddyObj$sEstUstarThold(seasonFactor=seasons)
+
+# estimate u* threshold with Tmean instead of Tair 
+uStarTh_Tmean <- EddyObj$sEstUstarThold(seasonFactor=seasons, TempColName="Tmean")
+
+# extract one value...
+uStarThSingle <- uStarTh$uStar[uStarTh$aggregationMode=="single"]
+uStarThSingle_Tmean <- uStarTh_Tmean$uStar[uStarTh$aggregationMode=="single"]
+
+# ...or seasonal value(s) as data frame
+uStarThSeasonal <- usGetSeasonalSeasonUStarMap(uStarTh)
+
+# plot NEE vs uStar for the summer season (see season names by looking at levels(uStarTh$season))
+# assigning file name is not possible so the second command overwrites the first plotss
+season <- "2021001"
+uStarThSeasonal
+EddyObj
+
+EddyObj$sPlotNEEVersusUStarForSeason(season=season, dir=resdir)
+#EddyObj$sPlotNEEVersusUStarForSeason(season=season)
+EddyObj$sPlotNEEVersusUStarForSeason(season=season, TempColName="Tmean", dir=resdir)
+#EddyObj$sPlotNEEVersusUStarForSeason(season=season, TempColName="Tmean")
+# If season filtering does not work, assign input data of the desired season:
+# plotData <- cbind(EddyObj$sDATA, EddyObj$sTEMP, EddyObj$sUSTAR_DETAILS$bins[,c("uStarBin","tempBin")])
+# plotData <- subset(plotData, season==season)
+# EddyObj$sPlotNEEVersusUStarForSeason(season=season, dir=resdir, data=plotData)
+# EddyObj$sPlotNEEVersusUStarForSeason(season=season, TempColName="Tmean", dir=resdir, data=plotData)
+
+```
+
+----------------------------------------------------------
+# 🔹 **4.3 Gap-Filling CO₂ Fluxes Using uStar Thresholds**
+----------------------------------------------------------
+```{r}
+# run gapfilling with single u* value, 
+# override default suffix "uStar" that is added to the result column names to distinguish the results of different gapfilling runs 
+EddyObj$sMDSGapFillAfterUstar("NEE", uStarTh=uStarThSingle, uStarSuffix="single_ust")
+
+# run gapfilling using mean of Tair and Tsoil as third condition variable
+EddyObj$sMDSGapFillAfterUstar("NEE", V3="Tmean", uStarTh=uStarThSingle_Tmean, uStarSuffix="single_ust_Tmean")
+
+# run gapfilling using Tsoil as third condition variable
+# EddyObj$sMDSGapFillAfterUstar("NEE", V3="Tsoil", uStarTh=uStarThSingle, uStarSuffix="single_ust_Tsoil")
+
+# run gapfilling with seasonally varying ustar
+# note that determining threshold is uncertain when fluxes are small, often it's better to use annual or single threshold
+EddyObj$sMDSGapFillAfterUstar("NEE", uStarTh=uStarThSeasonal, uStarSuffix="seasonal_ust")
+
+# assign results into dataframe (you can repeat this in later phases,
+# results accumulate in EddyObj$sTEMP if different scenarios are named with unique suffixes)
+resGapfill <- EddyObj$sExportResults()
+```
+
+
+
+------------------------------------------------------
+# 🔹 **4.4 Partitioning CO₂ Fluxes into GPP and Reco**
+------------------------------------------------------
+```{r}
+# CO2 flux partitioning with two driving temperatures of Reco and sMRFluxPartition method,
+# sGLFluxPartition and sTKFluxPartition methods are also available.
+
+# fill possible missing Rg, T and VPD before partitioning
+EddyObj$sMDSGapFill("Rg", FillAll=FALSE)
+EddyObj$sMDSGapFill("Tair", FillAll=FALSE)     
+EddyObj$sMDSGapFill("Tsoil", FillAll=FALSE)
+EddyObj$sMDSGapFill("Tmean", FillAll=FALSE)
+EddyObj$sMDSGapFill("VPD", FillAll=FALSE)
+
+# run partitioning using default Reco temperature (Tair), 
+# indicate NEE suffix (if other than plain "_f") for REddyProc to find corresponding gapfilled NEE 
+EddyObj$sMRFluxPartition(suffix="single_ust")
+
+# partitioning using the mean of filled Tair and Tsoil as Reco driver, reduce required temperature range to 3 degrees
+EddyObj$sMRFluxPartition(suffix="single_ust_Tmean", TempVar="Tmean_f", parsE0Regression=list(TempRange=3))
+
+# assign results into temporary variable (results in EddyObj will be overwritten each time if not given unique suffix)
+resPart <- EddyObj$sExportResults()
+
+# try partitioning using Tsoil as Reco driver, it probably fails as the range of variability in Tsoil is too small
+# EddyObj$sMRFluxPartition(suffix="single_ust_Tsoil", TempVar="Tsoil_f", parsE0Regression=list(TempRange=2))
+
+```
+
+
+
+# ============================================================
+# 💾 **5 Data Saving**
+# ============================================================
+```{r}
+# add gapfilled NEE to the final data frame
+EddyDataFilled <- cbind(EddyData, resGapfill[,
+                                             c("NEE_single_ust_f","NEE_single_ust_fqc","NEE_seasonal_ust_f","NEE_seasonal_ust_fqc",
+                                               "NEE_single_ust_Tmean_f","NEE_single_ust_Tmean_fqc")])
+
+
+
+# add component fluxes with air T as Reco driver
+tmpData <- resPart[,c("Reco_single_ust","GPP_single_ust_f","GPP_single_ust_fqc")]
+names(tmpData) <- c("Reco_Tair","GPP_Tair","GPP_qc_Tair")
+EddyDataFilled <- cbind(EddyDataFilled, tmpData)
+
+# add component fluxes with air & soil mean T as Reco driver
+tmpData <- resPart[,c("Reco_single_ust_Tmean","GPP_single_ust_Tmean_f","GPP_single_ust_Tmean_fqc")]
+names(tmpData) <- c("Reco_Tmean","GPP_Tmean","GPP_qc_Tmean")
+EddyDataFilled <- cbind(EddyDataFilled, tmpData)
+
+# save results into tab-separated text file using REddyProc's write function 
+fWriteDataframeToFile(EddyDataFilled, resfile, Dir=resdir)
+#fWriteDataframeToFile(EddyDataFilled, resfile)
+```
+
+# ============================================================
+# 📊 **5. Plotting Gap-Filled Fluxes and Diurnal Patterns**
+# ============================================================
+```{r}
+# plot stuff, note inconsistent case in dir/Dir argument
+
+EddyObj$sPlotHHFluxes("NEE_single_ust_f", Dir=resdir)
+EddyObj$sPlotDiurnalCycle("GPP_single_ust_f", Dir=resdir)
+EddyObj$sPlotDiurnalCycle("GPP_single_ust_Tmean_f", Dir=resdir)
+
+#EddyObj$sPlotHHFluxes("NEE_single_ust_f")
+#EddyObj$sPlotDiurnalCycle("GPP_single_ust_f")
+#EddyObj$sPlotDiurnalCycle("GPP_single_ust_Tmean_f")
+```
