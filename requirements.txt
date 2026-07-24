@@ -1,0 +1,21 @@
+# Core
+jupyterlab
+ipython
+tqdm
+numpy
+pandas
+matplotlib
+seaborn
+scipy
+scikit-learn
+openpyxl
+
+# Geospatial & viz
+geopandas
+matplotlib-scalebar
+windrose
+pyffp
+graphviz
+
+# Structural equation modeling
+semopy
