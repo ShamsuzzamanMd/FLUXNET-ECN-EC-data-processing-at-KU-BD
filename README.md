@@ -81,8 +81,8 @@ You can launch Binder in either RStudio or JupyterLab:
 
 | Environment | Launch Link |
 |--------------|--------------|
-| **JupyterLab** | [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/ShamsuzzamanMd/Binder/main?urlpath=lab) |
-| **RStudio** | [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/ShamsuzzamanMd/Binder/main?urlpath=rstudio) |
+| **JupyterLab** | [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/ShamsuzzamanMd/FLUXNET-ECN-EC-data-processing-at-KU-BD/main?urlpath=lab) |
+| **RStudio** | [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/ShamsuzzamanMd/FLUXNET-ECN-EC-data-processing-at-KU-BD/main?urlpath=rstudio) |
 
 
 ---
