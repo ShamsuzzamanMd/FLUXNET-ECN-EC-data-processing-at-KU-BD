@@ -2,7 +2,7 @@
 
 🚀 **Soil, Water and Environment Discipline, Khulna University, Bangladesh** আয়োজিত **FLUXNET Early Career Network (ECN) Workshop on Introduction to Eddy Covariance and Data Processing**-এর প্রশিক্ষণ উপকরণ এই Repository-তে সংরক্ষিত রয়েছে।
 
-এখানে Workshop-এর slides, hands-on notebooks, processing scripts এবং example datasets পাওয়া যাবে। এর মাধ্যমে **Python**, **R (REddyProc)** এবং **EddyPro** ব্যবহার করে **Eddy Covariance (EC) data processing**-এর মৌলিক বিষয়গুলো শেখানো হবে।
+এখানে Workshop-এর slides, hands-on notebooks, processing scripts এবং example datasets পাওয়া যাবে। এর মাধ্যমে **Python**, এবং **R (REddyProc)** ব্যবহার করে **Eddy Covariance (EC) data processing**-এর মৌলিক বিষয়গুলো শেখানো হবে।
 
 ---
 
